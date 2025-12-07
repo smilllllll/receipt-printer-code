@@ -1,5 +1,5 @@
 import time
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageEnhance
 from escpos.printer import Serial
 import os
 import keyboard
@@ -10,11 +10,15 @@ HEIGHT = 279
 
 COM_PORT = "COM3"
 BAUDRATE = 9600
-THING_IMAGE_PATH = "apple.jpg"
+THING_IMAGE_PATH = "mark.png"
 
 PRINT_SPEED_MM_S = 100
 DPI = 180
 MM_PER_INCH = 25.4
+
+BRIGHTNESS = 1.6     # 1.0 = normal
+CONTRAST = 1.6       # 1.0 = normal
+USE_DITHER = True    # True = Floyd-Steinberg, False = no dither
 
 
 def set_print_density(printer, density=1, break_time=0):
@@ -40,10 +44,11 @@ def load_static_print_image():
         return None
 
     img = Image.open(THING_IMAGE_PATH).convert("RGB")
-    img = img.resize((WIDTH, HEIGHT), Image.LANCZOS)
+    img = img.resize((WIDTH, HEIGHT * 2), Image.LANCZOS)
     return img
 
-# === PRINT IMAGE TO PRINTER (duh) ===
+
+# === PRINT IMAGE WITH BRIGHTNESS, CONTRAST AND DITHERING ===
 def print_static_image():
     static_img = load_static_print_image()
     if static_img is None:
@@ -51,10 +56,17 @@ def print_static_image():
 
     temp_path = "temp_print.png"
 
-    # Convert to black/white
-    bw_img = static_img.convert("1")
+    # --- Brightness & Contrast ---
+    static_img = ImageEnhance.Brightness(static_img).enhance(BRIGHTNESS)
+    static_img = ImageEnhance.Contrast(static_img).enhance(CONTRAST)
 
-    # Add padding for printer feed
+    # --- Dithering mode ---
+    if USE_DITHER:
+        bw_img = static_img.convert("1", dither=Image.FLOYDSTEINBERG)
+    else:
+        bw_img = static_img.convert("1", dither=Image.NONE)
+
+    # --- Add padding ---
     bw_img = ImageOps.expand(bw_img, border=(0, 0, 0, 30), fill=255)
 
     bw_img.save(temp_path)
@@ -63,7 +75,7 @@ def print_static_image():
         set_print_density(printer, density=1)
 
         est_time = estimate_feed_time(bw_img.height)
-        print(f"Printing... estimated {est_time:.2f}s")
+        print(f"Printing... est {est_time:.2f}s")
 
         printer.image(temp_path)
         printer.text("\n\n\n\n\n\n")
@@ -79,7 +91,7 @@ def print_static_image():
             os.remove(temp_path)
 
 
-# === INITIALIZE PRINTER ===
+# === PRINTER INIT ===
 try:
     printer = Serial(devfile=COM_PORT, baudrate=BAUDRATE, timeout=1)
 except Exception as e:
@@ -87,7 +99,7 @@ except Exception as e:
     printer = None
 
 
-# === HOTKEYS ===
+# === HOTKEY ===
 def hotkey_print():
     if printer:
         print_static_image()
@@ -95,7 +107,7 @@ def hotkey_print():
         print("Printer not initialized.")
 
 keyboard.add_hotkey("ctrl+p", hotkey_print)
-print("Press CTRL + P to print the image. Press CTRL + Q to quit.")
+print("Press CTRL + P to print the image. CTRL + Q to quit.")
 
 keyboard.wait("ctrl+q")
 
