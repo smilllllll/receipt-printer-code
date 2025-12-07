@@ -44,7 +44,7 @@ def load_static_print_image():
         return None
 
     img = Image.open(THING_IMAGE_PATH).convert("RGB")
-    img = img.resize((WIDTH, HEIGHT * 2), Image.LANCZOS)
+    img = img.resize((WIDTH, HEIGHT), Image.LANCZOS)
     return img
 
 
