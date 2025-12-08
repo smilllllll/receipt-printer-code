@@ -119,3 +119,8 @@ if printer:
         pass
 
 print("Exited.")
+
+# more examples:
+# printer.text("...") will print out text on the printer
+# printer.cut() will cut the paper
+# see for full documentation: https://python-escpos.readthedocs.io/en/latest
